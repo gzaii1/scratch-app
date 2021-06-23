@@ -1,0 +1,19 @@
+{
+  "name": "scratch-app",
+  "version": "1.0.0",
+  "description": "build u own scratch app with electron",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gzaii1/scratch-app.git"
+  },
+  "author": "guohan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gzaii1/scratch-app/issues"
+  },
+  "homepage": "https://github.com/gzaii1/scratch-app#readme"
+}
