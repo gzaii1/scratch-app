@@ -5,23 +5,18 @@ const {
     Menu, // 顶部栏
     Tray, // 添加icon和上下文菜单
     dialog, // 对话框
+    ipcRenderer, // 渲染器进程与主进程之间的通讯 
 } = require('electron')
 const store = require('./store')
-
+const BeginWork = require('./beginWork/script')
+const start = new BeginWork
 let win, tray, contents
 
-// const createWindow = () => {
-//     const win = new BrowserWindow({
-//         width: 800,
-//         height: 1600,
-//     })
-
-//     win.loadFile(`${__dirname}/public/index.html`)
-// }
-
-
 // electron初始化
-app.on('ready', () => {
+app.on('ready', async () => {
+    start.create()
+    const shouldUpdate = await start.init()
+
     session
         // 程序默认的session对象
         .defaultSession
@@ -41,6 +36,11 @@ app.on('ready', () => {
             webPreferences: { // 预加载脚本
                 preload: `${__dirname}/preload.js`,
                 devTools: true, // 是否允许开启控制台
+                webSecurity: false, // 是否开启同源策略
+                enableRemoteModule: true, // 启用remote模块
+                contextIsolation: false, // 是否隔离上下文 (建议开启)
+                nodeIntegration: true, // 是否启用nodeIntegration
+
             },
             icon: `${__dirname}/assets/icon.png`
         })
@@ -63,6 +63,7 @@ app.on('ready', () => {
         // ready-to-show事件: 第一次绘制完成时, 如果窗口未显示就会触发该事件
         win.on('ready-to-show', () => {
             win.show()
+            start.close()
         })
 
         tray = new Tray(`${__dirname}/assets/icon.png`)
@@ -73,14 +74,14 @@ app.on('ready', () => {
             { label: 'item3', type: 'radio', checked: true },
             { type: 'separator'},
             { label: '退出', click: () => {
-                win = null
                 app.quit()
             } },
         ])
 
-        tray.setToolTip('猿辅导')
+        tray.setToolTip('我的scratch')
         tray.setContextMenu(contextMenu)
 
+        // 使用window.open()时触发
         contents.setWindowOpenHandler(details => {
             console.log('details', details)
         })
@@ -94,11 +95,36 @@ app.on('ready', () => {
         //         title: 'hello world'
         //     })
         // })
+
+        // 文本加载完毕后触发
+        contents.on('dom-ready', () => {
+            const minPath = `${__dirname}/public/scratch/index.html`
+            if (!contents.getURL().includes('scratch/index.html')) {
+                win.loadFile(minPath)
+                store.set('lastURL', minPath)
+            }
+        })
+
+        // 加载失败时触发
+        contents.on('did-fail-load', () => {
+            // 尝试重启
+            win.reload()
+        })
+
+        // 窗口关闭时触发
+        win.on('close', evt => {
+            // 阻止在DOM的undload事件之前触发
+            evt.preventDefault()
+            // 强制关闭窗口 且不会触发close和unload事件
+            win.destroy()
+        })
 })
 
 // 所有窗口关闭时退出程序(除darwin苹果以外)
 app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {
+        // 关闭所有窗口
+        // 与app.exit()不同, quit的关闭所有窗口可以通过beforeunload事件中取消掉
         app.quit();
     }
 });
